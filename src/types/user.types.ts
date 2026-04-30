@@ -4,10 +4,8 @@ import { user_role } from "../generated/prisma/client";
 export type CreateUserDTO = {
   full_name: string;
   phone_number: string;
-  password_hash: string; 
-  role?: user_role;
-  address?: string | null;
-  profile_image?: string | null;
+  password: string;
+  confirmPassword: string;
 };
 
 /*Output (response) */
@@ -23,8 +21,8 @@ export type UserResponseDTO = {
 };
 
 export type RegisterUserDTO = {
-    full_name: string;
-    phone_number: string;
-    password: string;
-    confirmPassword: string;
-}
+  full_name: string;
+  phone_number: string;
+  password: string;
+  confirmPassword: string;
+};

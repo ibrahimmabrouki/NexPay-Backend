@@ -27,6 +27,7 @@ fastify.register(cookie, {
 // Import my routes
 import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
+import transferRoutes from "./routes/transfer.routes";
 
 //registering the routes
 //for the users
@@ -34,6 +35,9 @@ fastify.register(userRoutes, { prefix: "/api/users" });
 
 //for the authentication
 fastify.register(authRoutes, { prefix: "/api/auth" });
+
+//for the transfers
+fastify.register(transferRoutes, { prefix: "/api/transfers" });
 
 // start server
 const start = async () => {

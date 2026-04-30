@@ -56,3 +56,4 @@ uploads/
 # Secrets, keys
 *.key
 *.pem
+PROJECT_OVERVIEW.md

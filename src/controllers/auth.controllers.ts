@@ -1,11 +1,7 @@
 import { prisma } from "../config/prisma";
 import { hashPassword, comparePassword } from "../utils/hash";
 import { user_role } from "../generated/prisma/client";
-import {
-  CreateUserDTO,
-  UserResponseDTO,
-  RegisterUserDTO,
-} from "../types/user.types";
+import { RegisterUserDTO } from "../types/user.types";
 import { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
 import jwtUserPayload from "../types/jwt.types";
 import jwt from "jsonwebtoken";
@@ -94,15 +90,62 @@ async function Register(req: FastifyRequest, res: FastifyReply) {
     //hash password
     const hashedPassword = await hashPassword(password);
 
-    //create user
-    const user = await prisma.users.create({
-      data: {
-        full_name,
-        phone_number,
-        password_hash: hashedPassword,
-        role: user_role.USER, // default role
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      //create user
+
+      const user = await tx.users.create({
+        data: {
+          full_name,
+          phone_number,
+          password_hash: hashedPassword,
+          role: user_role.USER,
+        },
+      });
+
+      // after creatinig the user we need to create a wallet fot the user and then create three different wallet_balances and attach them to the wallet
+      // this action is just like initializing the wallet for the user
+      const wallet = await tx.wallets.create({
+        data: {
+          user_id: user.id,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+
+      // then after creating the wallet we need to create three different wallet_balances for the three different currencies (USD, LBP, and EUR) and attach them to the wallet that we just created
+      await tx.wallet_balances.createMany({
+        data: [
+          {
+            wallet_id: wallet.id,
+            currency: "USD",
+            available_balance: 0,
+            pending_balance: 0,
+          },
+          {
+            wallet_id: wallet.id,
+            currency: "LBP",
+            available_balance: 0,
+            pending_balance: 0,
+          },
+          {
+            wallet_id: wallet.id,
+            currency: "EUR",
+            available_balance: 0,
+            pending_balance: 0,
+          },
+        ],
+      });
+
+      await tx.notification_preferences.create({
+        data: {
+          user_id: user.id,
+        },
+      });
+
+      return { user };
     });
+
+    const user = result.user;
 
     // clean response (no password)
     res.status(201).send({

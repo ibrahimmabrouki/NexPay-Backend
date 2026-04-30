@@ -33,7 +33,7 @@ model currency_rates {
 }
 
 model ledger_transactions {
-  id             String             @id @db.Uuid
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id        String             @db.Uuid
   wallet_id      String             @db.Uuid
   type           ledger_type
@@ -44,19 +44,19 @@ model ledger_transactions {
   reference_type reference_type
   reference_id   String             @db.Uuid
   status         transaction_status
-  created_at     DateTime           @db.Timestamp(6)
+  created_at     DateTime           @default(now()) @db.Timestamp(6)
   users          users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ledger_user")
   wallets        wallets            @relation(fields: [wallet_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ledger_wallet")
 }
 
 model notification_preferences {
-  id              String   @id @db.Uuid
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id         String   @unique @db.Uuid
   receive_enabled Boolean? @default(true)
   send_enabled    Boolean? @default(true)
   deposit_enabled Boolean? @default(true)
-  created_at      DateTime @db.Timestamp(6)
-  updated_at      DateTime @db.Timestamp(6)
+  created_at      DateTime @default(now()) @db.Timestamp(6)
+  updated_at      DateTime @default(now()) @db.Timestamp(6)
   users           users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notification_pref_user")
 }
 
@@ -98,7 +98,7 @@ model stripe_webhook_events {
 }
 
 model transfers {
-  id                                            String             @id @db.Uuid
+  id                                            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   sender_id                                     String             @db.Uuid
   receiver_id                                   String             @db.Uuid
   sender_wallet_id                              String             @db.Uuid
@@ -106,7 +106,8 @@ model transfers {
   amount                                        Decimal            @db.Decimal(18, 2)
   currency                                      currency_type
   status                                        transaction_status
-  created_at                                    DateTime           @db.Timestamp(6)
+  created_at                                    DateTime           @default(now()) @db.Timestamp(6)
+  description                                   String?            @db.VarChar
   users_transfers_receiver_idTousers            users              @relation("transfers_receiver_idTousers", fields: [receiver_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transfer_receiver")
   wallets_transfers_receiver_wallet_idTowallets wallets            @relation("transfers_receiver_wallet_idTowallets", fields: [receiver_wallet_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transfer_receiver_wallet")
   users_transfers_sender_idTousers              users              @relation("transfers_sender_idTousers", fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transfer_sender")
@@ -137,23 +138,23 @@ model users {
 }
 
 model wallet_balances {
-  id                String        @id @db.Uuid
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   wallet_id         String        @db.Uuid
   currency          currency_type
-  available_balance Decimal?      @default(0) @db.Decimal(18, 2)
-  pending_balance   Decimal?      @default(0) @db.Decimal(18, 2)
-  created_at        DateTime      @db.Timestamp(6)
-  updated_at        DateTime      @db.Timestamp(6)
+  available_balance Decimal       @default(0) @db.Decimal(18, 2)
+  pending_balance   Decimal       @default(0) @db.Decimal(18, 2)
+  created_at        DateTime      @default(now()) @db.Timestamp(6)
+  updated_at        DateTime      @default(now()) @db.Timestamp(6)
   wallets           wallets       @relation(fields: [wallet_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_wallet_balance_wallet")
 
   @@unique([wallet_id, currency], map: "unique_wallet_currency")
 }
 
 model wallets {
-  id                                              String                 @id @db.Uuid
+  id                                              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id                                         String                 @unique @db.Uuid
-  created_at                                      DateTime               @db.Timestamp(6)
-  updated_at                                      DateTime               @db.Timestamp(6)
+  created_at                                      DateTime               @default(now()) @db.Timestamp(6)
+  updated_at                                      DateTime               @default(now()) @db.Timestamp(6)
   currency_conversions                            currency_conversions[]
   ledger_transactions                             ledger_transactions[]
   stripe_topups                                   stripe_topups[]
