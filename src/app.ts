@@ -1,9 +1,10 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import cookie from "@fastify/cookie";
+
 import Fastify from "fastify";
 import jwt from "@fastify/jwt";
-import { connectDB } from "./config/db";
 
 const fastify = Fastify({ logger: true });
 
@@ -15,12 +16,20 @@ fastify.register(jwt, {
   secret: process.env.ACCESS_TOKEN_SECRET as string,
 });
 
+fastify.register(require("@fastify/multipart"));
+
+fastify.register(cookie, {
+  secret: process.env.COOKIE_SECRET as string,
+  parseOptions: { httpOnly: true, secure: false, sameSite: "strict" },
+});
+// secure: false for development, true for production (requires HTTPS)
+
 // Import my routes
 import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
 
 //registering the routes
-//for the users 
+//for the users
 fastify.register(userRoutes, { prefix: "/api/users" });
 
 //for the authentication
@@ -29,7 +38,6 @@ fastify.register(authRoutes, { prefix: "/api/auth" });
 // start server
 const start = async () => {
   try {
-    await connectDB();
     await fastify.listen({ port: Number(process.env.PORT) || 5000 });
     console.log(`Server is running on port ${process.env.PORT || 5000}`);
   } catch (error) {

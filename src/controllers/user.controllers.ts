@@ -1,26 +1,59 @@
-import User from "../models/user.model";
+import { prisma } from "../config/prisma";
+import { user_role } from "../generated/prisma/client";
+import { hashPassword } from "../utils/hash";
+import { CreateUserDTO, UserResponseDTO } from "../types/user.types";
+import { uploadToImgBB } from "../utils/uploadToImgBB";
 
 import { FastifyRequest, FastifyReply } from "fastify";
 
+// this controller is used to get all the users from the backend
 async function getAllUsers(req: FastifyRequest, res: FastifyReply) {
   try {
-    const users = await User.find();
-    res.status(200).send(users);
+    const users = await prisma.users.findMany();
+    const response: UserResponseDTO[] = users.map((user) => ({
+      id: user.id,
+      full_name: user.full_name,
+      phone_number: user.phone_number,
+      role: user.role,
+      address: user.address,
+      profile_image: user.profile_image,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    }));
+
+    res.status(200).send(response);
   } catch (error: any) {
+    console.error("FULL ERROR:", error);
     res.status(500).send({
       message: error.message || "Some error occurred while retrieving users.",
     });
   }
 }
 
+// this controller is used to get a specific user by id from the backend
 async function getUserById(req: FastifyRequest, res: FastifyReply) {
   try {
     const { id } = req.params as { id: string };
-    const user = await User.findById(id);
+    const user = await prisma.users.findUnique({
+      where: {
+        id: id,
+      },
+    });
     if (!user) {
       return res.status(404).send({ message: "User not found with id " + id });
     }
-    res.status(200).send(user);
+    const response: UserResponseDTO = {
+      id: user.id,
+      full_name: user.full_name,
+      phone_number: user.phone_number,
+      role: user.role,
+      address: user.address,
+      profile_image: user.profile_image,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    };
+
+    res.status(200).send(response);
   } catch (error: any) {
     res.status(500).send({
       message:
@@ -29,47 +62,107 @@ async function getUserById(req: FastifyRequest, res: FastifyReply) {
   }
 }
 
+// this controller is used to create a new user in the backend
 async function createUser(req: FastifyRequest, res: FastifyReply) {
   try {
-    const { name, email, password } = req.body as {
-      name: string;
-      email: string;
-      password: string;
+    const { full_name, phone_number, password_hash, address, profile_image } =
+      req.body as CreateUserDTO;
+
+    const newUser = {
+      full_name,
+      phone_number,
+      password_hash: await hashPassword(password_hash),
+      role: user_role.USER,
+      address: address || null,
+      profile_image: profile_image || null,
     };
-    const newUser = { name: name, email: email, password: password };
-    const savedUser = await User.create(newUser);
-    res.status(201).send(savedUser);
+
+    const user = await prisma.users.create({
+      data: newUser,
+    });
+
+    const response: UserResponseDTO = {
+      id: user.id,
+      full_name: user.full_name,
+      phone_number: user.phone_number,
+      role: user.role,
+      address: user.address,
+      profile_image: user.profile_image,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    };
+
+    res.status(201).send(response);
   } catch (error: any) {
+    console.error(error);
     res.status(500).send({
-      message:
-        error.message || "Some error occurred while retrieving the user.",
+      message: error.message || "Some error occurred while creating the user.",
     });
   }
 }
 
+// this controller is used to update a specific user by id in the backend
 async function updateUserById(req: FastifyRequest, res: FastifyReply) {
   try {
     const { id } = req.params as { id: string };
-    const { name, email, password, imageUrl } = req.body as {
-      name: string;
-      email: string;
-      password: string;
-      imageUrl: string;
-    };
-    const updatedData = {} as any;
+    const mpReq = req as any;
 
-    if (name) updatedData.name = name;
-    if (email) updatedData.email = email;
-    if (password) updatedData.password = password;
-    if (imageUrl) updatedData.imageUrl = imageUrl;
+    let full_name: string | undefined;
+    let address: string | undefined;
+    let phone_number: string | undefined;
+    let profile_image: string | undefined;
 
-    const updatedUser = await User.findByIdAndUpdate({ _id: id }, updatedData, {
-      new: true,
+    if (mpReq.isMultipart()) {
+      for await (const part of mpReq.parts()) {
+        // update the prfile image if it is sent in the request
+        if (part.type === "file" && part.fieldname === "profile_image") {
+          profile_image = await uploadToImgBB(part.file);
+        }
+
+        if (part.type === "field") {
+          if (part.fieldname === "full_name") {
+            full_name = part.value;
+          } else if (part.fieldname === "address") {
+            address = part.value;
+          } else if (part.fieldname === "phone_number") {
+            phone_number = part.value;
+          }
+        }
+      }
+    } else {
+      const body = req.body as any;
+      full_name = body.full_name;
+      address = body.address;
+      phone_number = body.phone_number;
+    }
+
+    const updatedData: any = {};
+
+    if (full_name) updatedData.full_name = full_name;
+    if (address) updatedData.address = address;
+    if (phone_number) updatedData.phone_number = phone_number;
+    if (profile_image) updatedData.profile_image = profile_image;
+
+    const updatedUser = await prisma.users.update({
+      where: {
+        id: id,
+      },
+      data: updatedData,
     });
     if (!updatedUser) {
       return res.status(404).send({ message: "User not found with id " + id });
     }
-    res.status(200).send(updatedUser);
+    const response: UserResponseDTO = {
+      id: updatedUser.id,
+      full_name: updatedUser.full_name,
+      phone_number: updatedUser.phone_number,
+      role: updatedUser.role,
+      address: updatedUser.address,
+      profile_image: updatedUser.profile_image,
+      created_at: updatedUser.created_at,
+      updated_at: updatedUser.updated_at,
+    };
+    res.status(200).send(response);
   } catch (error: any) {
     res.status(500).send({
       message:
@@ -81,7 +174,11 @@ async function updateUserById(req: FastifyRequest, res: FastifyReply) {
 async function deleteUserById(req: FastifyRequest, res: FastifyReply) {
   try {
     const { id } = req.params as { id: string };
-    const deletedUser = await User.findByIdAndDelete(id);
+    const deletedUser = await prisma.users.delete({
+      where: {
+        id: id,
+      },
+    });
     if (!deletedUser) {
       return res.status(404).send({ message: "User not found with id " + id });
     }

@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
+import jwtUserPayload from "../types/jwt.types";
 
 async function authenticateUser(req: FastifyRequest, res: FastifyReply) {
   try {
@@ -11,4 +12,14 @@ async function authenticateUser(req: FastifyRequest, res: FastifyReply) {
   }
 }
 
-export default authenticateUser;
+const authorizeRoles = (...allowedRoles: string[]) => {
+  return async (req: FastifyRequest, res: FastifyReply) => {
+    const userRole = (req.user as jwtUserPayload).role;
+
+    if (!allowedRoles.includes(userRole)) {
+      return res.status(403).send({ message: "Forbidden: Access is denied" });
+    }
+  };
+};
+
+export { authenticateUser, authorizeRoles };

@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model currency_conversions {
+  id            String             @id @db.Uuid
+  user_id       String             @db.Uuid
+  wallet_id     String             @db.Uuid
+  from_currency currency_type
+  to_currency   currency_type
+  amount_from   Decimal            @db.Decimal(18, 2)
+  amount_to     Decimal            @db.Decimal(18, 2)
+  rate_used     Decimal            @db.Decimal(18, 6)
+  status        transaction_status
+  created_at    DateTime           @db.Timestamp(6)
+  users         users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_conversion_user")
+  wallets       wallets            @relation(fields: [wallet_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_conversion_wallet")
+}
+
+model currency_rates {
+  id              String        @id @db.Uuid
+  base_currency   currency_type
+  target_currency currency_type
+  rate            Decimal       @db.Decimal(18, 6)
+  source          String        @db.VarChar
+  fetched_at      DateTime      @db.Timestamp(6)
+  expires_at      DateTime      @db.Timestamp(6)
+}
+
+model ledger_transactions {
+  id             String             @id @db.Uuid
+  user_id        String             @db.Uuid
+  wallet_id      String             @db.Uuid
+  type           ledger_type
+  currency       currency_type
+  amount         Decimal            @db.Decimal(18, 2)
+  balance_before Decimal            @db.Decimal(18, 2)
+  balance_after  Decimal            @db.Decimal(18, 2)
+  reference_type reference_type
+  reference_id   String             @db.Uuid
+  status         transaction_status
+  created_at     DateTime           @db.Timestamp(6)
+  users          users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ledger_user")
+  wallets        wallets            @relation(fields: [wallet_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ledger_wallet")
+}
+
+model notification_preferences {
+  id              String   @id @db.Uuid
+  user_id         String   @unique @db.Uuid
+  receive_enabled Boolean? @default(true)
+  send_enabled    Boolean? @default(true)
+  deposit_enabled Boolean? @default(true)
+  created_at      DateTime @db.Timestamp(6)
+  updated_at      DateTime @db.Timestamp(6)
+  users           users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notification_pref_user")
+}
+
+model notifications {
+  id             String            @id @db.Uuid
+  user_id        String            @db.Uuid
+  type           notification_type
+  title          String            @db.VarChar
+  message        String
+  is_read        Boolean?          @default(false)
+  is_success     Boolean?
+  reference_id   String?           @db.Uuid
+  reference_type reference_type?
+  created_at     DateTime          @db.Timestamp(6)
+  users          users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notification_user")
+}
+
+model stripe_topups {
+  id                    String             @id @db.Uuid
+  user_id               String             @db.Uuid
+  wallet_id             String             @db.Uuid
+  amount                Decimal            @db.Decimal(18, 2)
+  currency              currency_type
+  stripe_session_id     String             @unique @db.VarChar
+  stripe_payment_intent String?            @db.VarChar
+  status                transaction_status
+  created_at            DateTime           @db.Timestamp(6)
+  updated_at            DateTime           @db.Timestamp(6)
+  users                 users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_topup_user")
+  wallets               wallets            @relation(fields: [wallet_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_topup_wallet")
+}
+
+model stripe_webhook_events {
+  id              String   @id @db.Uuid
+  stripe_event_id String   @unique @db.VarChar
+  event_type      String   @db.VarChar
+  processed       Boolean? @default(false)
+  created_at      DateTime @db.Timestamp(6)
+}
+
+model transfers {
+  id                                            String             @id @db.Uuid
+  sender_id                                     String             @db.Uuid
+  receiver_id                                   String             @db.Uuid
+  sender_wallet_id                              String             @db.Uuid
+  receiver_wallet_id                            String             @db.Uuid
+  amount                                        Decimal            @db.Decimal(18, 2)
+  currency                                      currency_type
+  status                                        transaction_status
+  created_at                                    DateTime           @db.Timestamp(6)
+  users_transfers_receiver_idTousers            users              @relation("transfers_receiver_idTousers", fields: [receiver_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transfer_receiver")
+  wallets_transfers_receiver_wallet_idTowallets wallets            @relation("transfers_receiver_wallet_idTowallets", fields: [receiver_wallet_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transfer_receiver_wallet")
+  users_transfers_sender_idTousers              users              @relation("transfers_sender_idTousers", fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transfer_sender")
+  wallets_transfers_sender_wallet_idTowallets   wallets            @relation("transfers_sender_wallet_idTowallets", fields: [sender_wallet_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transfer_sender_wallet")
+}
+
+model users {
+  id                                     String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone_number                           String                    @unique @db.VarChar(20)
+  password_hash                          String                    @db.VarChar(255)
+  full_name                              String                    @db.VarChar(255)
+  profile_image                          String?                   @db.VarChar(500)
+  role                                   user_role
+  address                                String?                   @db.VarChar(255)
+  is_active                              Boolean?                  @default(true)
+  created_at                             DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at                             DateTime?                 @default(now()) @db.Timestamp(6)
+  currency_conversions                   currency_conversions[]
+  ledger_transactions                    ledger_transactions[]
+  notification_preferences               notification_preferences?
+  notifications                          notifications[]
+  stripe_topups                          stripe_topups[]
+  transfers_transfers_receiver_idTousers transfers[]               @relation("transfers_receiver_idTousers")
+  transfers_transfers_sender_idTousers   transfers[]               @relation("transfers_sender_idTousers")
+  wallets                                wallets?
+
+  @@index([phone_number], map: "idx_users_phone_number")
+}
+
+model wallet_balances {
+  id                String        @id @db.Uuid
+  wallet_id         String        @db.Uuid
+  currency          currency_type
+  available_balance Decimal?      @default(0) @db.Decimal(18, 2)
+  pending_balance   Decimal?      @default(0) @db.Decimal(18, 2)
+  created_at        DateTime      @db.Timestamp(6)
+  updated_at        DateTime      @db.Timestamp(6)
+  wallets           wallets       @relation(fields: [wallet_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_wallet_balance_wallet")
+
+  @@unique([wallet_id, currency], map: "unique_wallet_currency")
+}
+
+model wallets {
+  id                                              String                 @id @db.Uuid
+  user_id                                         String                 @unique @db.Uuid
+  created_at                                      DateTime               @db.Timestamp(6)
+  updated_at                                      DateTime               @db.Timestamp(6)
+  currency_conversions                            currency_conversions[]
+  ledger_transactions                             ledger_transactions[]
+  stripe_topups                                   stripe_topups[]
+  transfers_transfers_receiver_wallet_idTowallets transfers[]            @relation("transfers_receiver_wallet_idTowallets")
+  transfers_transfers_sender_wallet_idTowallets   transfers[]            @relation("transfers_sender_wallet_idTowallets")
+  wallet_balances                                 wallet_balances[]
+  users                                           users                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_wallet_user")
+}
+
+enum currency_type {
+  USD
+  EUR
+  LBP
+}
+
+enum ledger_type {
+  TOPUP
+  TRANSFER_IN
+  TRANSFER_OUT
+  CONVERSION_DEBIT
+  CONVERSION_CREDIT
+}
+
+enum notification_type {
+  ANNOUNCEMENT
+  RECEIVE
+  SEND
+  DEPOSIT
+}
+
+enum reference_type {
+  STRIPE
+  TRANSFER
+  CONVERSION
+}
+
+enum transaction_status {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum user_role {
+  STAFF
+  USER
+  COMPANY
+}
