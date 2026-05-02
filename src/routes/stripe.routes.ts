@@ -1,0 +1,27 @@
+import {
+  createStripeSession,
+  handleStripeWebhook,
+} from "../controllers/stripe.controller";
+import { FastifyInstance } from "fastify";
+import { user_role } from "../generated/prisma/enums";
+import { authenticateUser, authorizeRoles } from "../middlewares/auth";
+
+async function stripeRoutes(fastify: FastifyInstance, options: any) {
+  fastify.post(
+    "/create-session",
+    {
+      preHandler: [
+        authenticateUser,
+        authorizeRoles(user_role.USER, user_role.COMPANY),
+      ],
+    },
+    createStripeSession,
+  );
+  fastify.post(
+    "/webhook",
+    { config: { rawBody: true } },
+    handleStripeWebhook,
+  );
+}
+
+export default stripeRoutes;

@@ -12,6 +12,7 @@
   "description": "",
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.2.0",
     "@fastify/jwt": "^10.0.0",
     "@fastify/multipart": "^10.0.0",
     "@prisma/adapter-pg": "^7.8.0",
@@ -20,9 +21,11 @@
     "bcrypt": "^6.0.0",
     "dotenv": "^17.4.1",
     "fastify": "^5.8.4",
+    "fastify-raw-body": "^5.0.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.4.1",
-    "prisma": "^7.8.0"
+    "prisma": "^7.8.0",
+    "stripe": "^22.1.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

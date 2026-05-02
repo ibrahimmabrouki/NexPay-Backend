@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import cookie from "@fastify/cookie";
-
+import rawBody from "fastify-raw-body";
 import Fastify from "fastify";
 import jwt from "@fastify/jwt";
 
@@ -14,6 +14,13 @@ const fastify = Fastify({ logger: true });
 //the methods are going to be accessible through the req.server.jwt property
 fastify.register(jwt, {
   secret: process.env.ACCESS_TOKEN_SECRET as string,
+});
+
+fastify.register(rawBody, {
+  field: "rawBody",
+  global: false,
+  encoding: "utf8",
+  runFirst: true,
 });
 
 fastify.register(require("@fastify/multipart"));
@@ -32,6 +39,7 @@ import conversionRoutes from "./routes/conversion.routes";
 import notificationRoutes from "./routes/notification.routes";
 import notificationPrefRoutes from "./routes/notificationPref.routes";
 import walletRoutes from "./routes/wallet.routes";
+import stripeRoutes from "./routes/stripe.routes";
 
 //registering the routes
 //for the users
@@ -56,6 +64,9 @@ fastify.register(notificationPrefRoutes, {
 
 //for the wallet
 fastify.register(walletRoutes, { prefix: "/api/wallet" });
+
+//for the stripe payment gateway
+fastify.register(stripeRoutes, { prefix: "/api/stripe" });
 
 // start server
 const start = async () => {
