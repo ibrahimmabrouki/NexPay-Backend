@@ -5,18 +5,31 @@ import {
   ledger_type,
   reference_type,
   transaction_status,
+  notification_type,
 } from "../generated/prisma/enums";
 import jwtUserPayload from "../types/jwt.types";
+import { getTransfersQueryParams } from "../types/tranfer";
 
+// controller to make a transfer from one user to another, the transfer will be created with pending status then after the transfer is created and money is deducted from the sender wallet balance and added to the recipient wallet balance we will update the transfer status to completed
 const createTransfer = async (req: FastifyRequest, res: FastifyReply) => {
   try {
-    const { amount, rceipient_phone_number, currency } = req.body as {
-      amount: number;
-      rceipient_phone_number: string;
-      currency: currency_type;
-    };
+    const { amount, rceipient_phone_number, currency, description } =
+      req.body as {
+        amount: number;
+        rceipient_phone_number: string;
+        currency: currency_type;
+        description?: string;
+      };
 
     const sender_id = (req.user as jwtUserPayload).id;
+
+    const sender = await prisma.users.findUnique({
+      where: { id: sender_id },
+    });
+
+    if (!sender) {
+      return res.status(404).send({ error: "Sender not found" });
+    }
 
     const sender_wallet = await prisma.wallets.findFirst({
       where: {
@@ -156,11 +169,73 @@ const createTransfer = async (req: FastifyRequest, res: FastifyReply) => {
       return { final_transfer };
     });
 
+    // after everything is done we will send a notification to the recipient to notify them about the transfer
+    // but before sending the notification we need to check if the recipient has enabled the recieve_enabled notification preference
+    const recipient_notification_pref =
+      await prisma.notification_preferences.findFirst({
+        where: {
+          user_id: result.final_transfer.receiver_id,
+        },
+      });
+
+    if (recipient_notification_pref?.receive_enabled) {
+      await prisma.notifications.create({
+        data: {
+          user_id: result.final_transfer.receiver_id,
+          type: notification_type.RECEIVE,
+          title: "You received a transfer",
+          message: `You received a transfer of ${result.final_transfer.amount} ${result.final_transfer.currency} from ${sender?.full_name || "Unknown Sender"} \n Description: ${description || "No description provided"}`,
+          is_read: false,
+          is_success: true,
+          reference_type: reference_type.TRANSFER,
+          reference_id: result.final_transfer.id,
+        },
+      });
+    }
+
     // send response
     res.status(201).send({ transfer: result.final_transfer });
   } catch (error: any) {
-    console.error(error);
+    res.status(500).send({
+      message:
+        error.message || "Some error occurred while creating the transfer.",
+    });
   }
 };
 
-export { createTransfer };
+// controller to get all the transfers in a paginated way
+// the page by defualt will be 1 and the limit will be 10
+const getTransfers = async (
+  req: FastifyRequest<{ Querystring: getTransfersQueryParams }>,
+  res: FastifyReply,
+) => {
+  try {
+    const user_id = (req.user as jwtUserPayload).id;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const transfers = await prisma.transfers.findMany({
+      where: {
+        // the transfers could be transfer in or transfer out. so we are getting all the transfers and in the frontend they will be filtered based on the transfer type
+        OR: [{ sender_id: user_id }, { receiver_id: user_id }],
+      },
+      orderBy: {
+        created_at: "desc",
+      },
+    });
+
+    res.status(200).send({
+      page: page,
+      limit: limit,
+      data: transfers,
+    });
+  } catch (error: any) {
+    res.status(500).send({
+      message:
+        error.message || "Some error occurred while retrieving transfers.",
+    });
+  }
+};
+
+export { createTransfer, getTransfers };

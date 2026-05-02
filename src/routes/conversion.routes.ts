@@ -1,14 +1,11 @@
 import { FastifyInstance } from "fastify";
-import {
-  createTransfer,
-  getTransfers,
-} from "../controllers/transfer.controller";
+import { convertCurrency, getConversions } from "../controllers/conversion.controller";
 import { user_role } from "../generated/prisma/enums";
-import { getTransfersQueryParams } from "../types/tranfer";
 
 import { authenticateUser, authorizeRoles } from "../middlewares/auth";
+import { getConversionQueryParams } from "../types/conversion";
 
-async function transferRoutes(fastify: FastifyInstance, options: any) {
+async function conversionRoutes(fastify: FastifyInstance, options: any) {
   fastify.post(
     "/",
     {
@@ -17,9 +14,9 @@ async function transferRoutes(fastify: FastifyInstance, options: any) {
         authorizeRoles(user_role.USER, user_role.COMPANY),
       ],
     },
-    createTransfer,
+    convertCurrency,
   );
-  fastify.get<{ Querystring: getTransfersQueryParams }>(
+  fastify.get<{ Querystring: getConversionQueryParams}>(
     "/",
     {
       preHandler: [
@@ -27,8 +24,8 @@ async function transferRoutes(fastify: FastifyInstance, options: any) {
         authorizeRoles(user_role.USER, user_role.COMPANY),
       ],
     },
-    getTransfers,
+    getConversions
   );
 }
 
-export default transferRoutes;
+export default conversionRoutes;

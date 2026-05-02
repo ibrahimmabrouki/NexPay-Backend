@@ -1,4 +1,3 @@
-import "@fastify/jwt";
 import jwtUserPayload from "./jwt.types";
 
 declare module "@fastify/jwt" {

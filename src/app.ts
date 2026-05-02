@@ -28,6 +28,10 @@ fastify.register(cookie, {
 import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
 import transferRoutes from "./routes/transfer.routes";
+import conversionRoutes from "./routes/conversion.routes";
+import notificationRoutes from "./routes/notification.routes";
+import notificationPrefRoutes from "./routes/notificationPref.routes";
+import walletRoutes from "./routes/wallet.routes";
 
 //registering the routes
 //for the users
@@ -38,6 +42,20 @@ fastify.register(authRoutes, { prefix: "/api/auth" });
 
 //for the transfers
 fastify.register(transferRoutes, { prefix: "/api/transfers" });
+
+//for the currency conversion
+fastify.register(conversionRoutes, { prefix: "/api/conversions" });
+
+//for the notifications
+fastify.register(notificationRoutes, { prefix: "/api/notifications" });
+
+//for the notification preferences
+fastify.register(notificationPrefRoutes, {
+  prefix: "/api/notification-preferences",
+});
+
+//for the wallet
+fastify.register(walletRoutes, { prefix: "/api/wallet" });
 
 // start server
 const start = async () => {

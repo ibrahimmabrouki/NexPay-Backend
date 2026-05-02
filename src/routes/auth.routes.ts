@@ -6,7 +6,7 @@ import {
   getCurrentUser,
 } from "../controllers/auth.controllers";
 import { FastifyInstance } from "fastify";
-import { authenticateUser, authorizeRoles } from "../middlewares/auth";
+import { authenticateUser } from "../middlewares/auth";
 
 async function authRoutes(fastify: FastifyInstance, options: any) {
   fastify.post("/login", login);
