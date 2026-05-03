@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../config/prisma";
 import jwtUserPayload from "../types/jwt.types";
+import { getTopUpsQueryParams } from "../types/topups";
 import {
   currency_type,
   transaction_status,
@@ -238,7 +239,7 @@ async function handleStripeWebhook(req: FastifyRequest, res: FastifyReply) {
         }
 
         const newBalance = balance.available_balance.plus(amount);
-        
+
         // 3. update balance
         await tx.wallet_balances.update({
           where: { id: balance.id },
@@ -328,4 +329,40 @@ async function handleStripeWebhook(req: FastifyRequest, res: FastifyReply) {
   }
 }
 
-export { createStripeSession, handleStripeWebhook };
+// controller to get all the topups of the user in a paginated format
+// there will be to main query parameters, first one which is the page number by default 1 and the second one is the limit and by default it will be 10
+async function getOwnTopups(
+  req: FastifyRequest<{ Querystring: getTopUpsQueryParams }>,
+  res: FastifyReply,
+) {
+  try {
+    const user_id = (req.user as jwtUserPayload).id;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+
+    const offset = (page - 1) * limit;
+    const topups = await prisma.stripe_topups.findMany({
+      where: {
+        user_id: user_id,
+      },
+      orderBy: {
+        created_at: "desc",
+      },
+      skip: offset,
+      take: limit,
+    });
+
+    return res.status(200).send({
+      page: page,
+      limit: limit,
+      data: topups,
+    });
+  } catch (error: any) {
+    console.error(error);
+    return res.status(500).send({
+      message: error.message || "An error occurred while fetching user topups",
+    });
+  }
+}
+
+export { createStripeSession, handleStripeWebhook, getOwnTopups };

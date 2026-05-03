@@ -6,3 +6,10 @@ declare module "@fastify/jwt" {
     user: jwtUserPayload; // used for request.user
   }
 }
+
+declare module "fastify" {
+  interface FastifyRequest {
+    user: jwtUserPayload; // adds user property to FastifyRequest
+  }
+}
+

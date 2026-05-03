@@ -92,11 +92,12 @@ model stripe_topups {
 }
 
 model stripe_webhook_events {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  stripe_event_id String   @unique @db.VarChar
-  event_type      String   @db.VarChar
-  processed       Boolean? @default(false)
-  created_at      DateTime @default(now()) @db.Timestamp(6)
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stripe_event_id String    @unique @db.VarChar
+  event_type      String    @db.VarChar
+  processed       Boolean?  @default(false)
+  created_at      DateTime  @default(now()) @db.Timestamp(6)
+  updated_at      DateTime? @default(now()) @db.Timestamp(6)
 }
 
 model transfers {
