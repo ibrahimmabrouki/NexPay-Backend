@@ -47,6 +47,7 @@ import notificationRoutes from "./routes/notification.routes";
 import notificationPrefRoutes from "./routes/notificationPref.routes";
 import walletRoutes from "./routes/wallet.routes";
 import stripeRoutes from "./routes/stripe.routes";
+import aiRoutes from "./routes/ai.routes";
 
 //registering the routes
 //for the users
@@ -74,6 +75,9 @@ fastify.register(walletRoutes, { prefix: "/api/wallet" });
 
 //for the stripe payment gateway
 fastify.register(stripeRoutes, { prefix: "/api/stripe" });
+
+//for the AI service
+fastify.register(aiRoutes, { prefix: "/api" });
 
 // start server
 const start = async () => {

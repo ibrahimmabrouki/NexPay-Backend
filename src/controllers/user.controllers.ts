@@ -13,6 +13,7 @@ async function getAllUsers(req: FastifyRequest, res: FastifyReply) {
     const response: UserResponseDTO[] = users.map((user) => ({
       id: user.id,
       full_name: user.full_name,
+      country_code: user.country_code,
       phone_number: user.phone_number,
       role: user.role,
       address: user.address,
@@ -45,6 +46,7 @@ async function getUserById(req: FastifyRequest, res: FastifyReply) {
     const response: UserResponseDTO = {
       id: user.id,
       full_name: user.full_name,
+      country_code: user.country_code,
       phone_number: user.phone_number,
       role: user.role,
       address: user.address,
@@ -65,7 +67,7 @@ async function getUserById(req: FastifyRequest, res: FastifyReply) {
 // this controller is used to create a new user in the backend
 async function createUser(req: FastifyRequest, res: FastifyReply) {
   try {
-    const { full_name, phone_number, password, confirmPassword } =
+    const { full_name, country_code, phone_number, password, confirmPassword } =
       req.body as CreateUserDTO;
 
     if (password !== confirmPassword) {
@@ -84,6 +86,7 @@ async function createUser(req: FastifyRequest, res: FastifyReply) {
       const user = await tx.users.create({
         data: {
           full_name,
+          country_code,
           phone_number,
           password_hash: hashedPassword,
           role: user_role.USER,
@@ -147,6 +150,7 @@ async function createUser(req: FastifyRequest, res: FastifyReply) {
         profile_image: user.profile_image,
         created_at: user.created_at,
         updated_at: user.updated_at,
+        country_code: user.country_code,
       },
     });
   } catch (error: any) {
@@ -217,6 +221,7 @@ async function updateUserById(req: FastifyRequest, res: FastifyReply) {
       profile_image: updatedUser.profile_image,
       created_at: updatedUser.created_at,
       updated_at: updatedUser.updated_at,
+      country_code: updatedUser.country_code,
     };
     res.status(200).send(response);
   } catch (error: any) {

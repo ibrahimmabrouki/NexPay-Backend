@@ -66,7 +66,7 @@ async function login(req: FastifyRequest, res: FastifyReply) {
 // user registration function
 async function Register(req: FastifyRequest, res: FastifyReply) {
   try {
-    const { full_name, phone_number, password, confirmPassword } =
+    const { full_name, country_code, phone_number, password, confirmPassword } =
       req.body as RegisterUserDTO;
 
     //check if user already exists
@@ -96,6 +96,7 @@ async function Register(req: FastifyRequest, res: FastifyReply) {
       const user = await tx.users.create({
         data: {
           full_name,
+          country_code,
           phone_number,
           password_hash: hashedPassword,
           role: user_role.USER,
@@ -159,6 +160,7 @@ async function Register(req: FastifyRequest, res: FastifyReply) {
         profile_image: user.profile_image,
         created_at: user.created_at,
         updated_at: user.updated_at,
+        country_code: user.country_code,
       },
     });
   } catch (error: any) {
@@ -256,6 +258,7 @@ async function getCurrentUser(req: FastifyRequest, res: FastifyReply) {
       profile_image: user.profile_image,
       created_at: user.created_at,
       updated_at: user.updated_at,
+      country_code: user.country_code,
     });
   } catch (error: any) {
     res.status(500).send({
