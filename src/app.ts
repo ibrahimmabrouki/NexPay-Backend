@@ -5,6 +5,7 @@ import cookie from "@fastify/cookie";
 import rawBody from "fastify-raw-body";
 import Fastify from "fastify";
 import jwt from "@fastify/jwt";
+import cors from "@fastify/cors";
 
 const fastify = Fastify({ logger: true });
 
@@ -14,6 +15,12 @@ const fastify = Fastify({ logger: true });
 //the methods are going to be accessible through the req.server.jwt property
 fastify.register(jwt, {
   secret: process.env.ACCESS_TOKEN_SECRET as string,
+});
+
+fastify.register(cors, {
+  origin: process.env.FRONTEND_URL as string, // frontend
+  credentials: true, // REQUIRED for cookies
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 });
 
 fastify.register(rawBody, {

@@ -6,7 +6,9 @@ import jwtUserPayload from "../types/jwt.types";
 const getWalletBalances = async (req: FastifyRequest, res: FastifyReply) => {
   try {
     const user_id = (req.user as jwtUserPayload).id;
-    const wallet = await prisma.wallets.findFirst({});
+    const wallet = await prisma.wallets.findFirst({
+      where: { user_id },
+    });
     if (!wallet) {
       return res.status(404).send({ error: "Wallet not found" });
     }
