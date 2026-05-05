@@ -130,6 +130,9 @@ model users {
   created_at                             DateTime?                 @default(now()) @db.Timestamp(6)
   updated_at                             DateTime?                 @default(now()) @db.Timestamp(6)
   country_code                           String                    @db.VarChar(10)
+  memory_summary                         String?
+  message_since_last_summary             Int?                      @default(0)
+  chat_messages                          chat_messages[]
   currency_conversions                   currency_conversions[]
   ledger_transactions                    ledger_transactions[]
   notification_preferences               notification_preferences?
@@ -167,6 +170,18 @@ model wallets {
   transfers_transfers_sender_wallet_idTowallets   transfers[]            @relation("transfers_sender_wallet_idTowallets")
   wallet_balances                                 wallet_balances[]
   users                                           users                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_wallet_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model chat_messages {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  role       String    @db.VarChar(10)
+  content    String
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, created_at(sort: Desc)], map: "idx_chat_messages_user_id_created_at")
 }
 
 enum currency_type {

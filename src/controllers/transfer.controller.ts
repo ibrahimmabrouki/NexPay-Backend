@@ -92,6 +92,7 @@ const createTransfer = async (req: FastifyRequest, res: FastifyReply) => {
           receiver_id: recipient_wallet.user_id,
           sender_wallet_id: sender_wallet.id,
           receiver_wallet_id: recipient_wallet.id,
+          description,
           amount,
           currency,
           status: "PENDING",
@@ -217,18 +218,61 @@ const getTransfers = async (
 
     const transfers = await prisma.transfers.findMany({
       where: {
-        // the transfers could be transfer in or transfer out. so we are getting all the transfers and in the frontend they will be filtered based on the transfer type
         OR: [{ sender_id: user_id }, { receiver_id: user_id }],
+      },
+      include: {
+        users_transfers_receiver_idTousers: {
+          select: {
+            full_name: true,
+            phone_number: true,
+          },
+        },
+        users_transfers_sender_idTousers: {
+          select: {
+            full_name: true,
+            phone_number: true,
+          },
+        },
       },
       orderBy: {
         created_at: "desc",
       },
     });
 
+    const result = transfers.map((t) => ({
+      id: t.id,
+      amount: t.amount,
+      currency: t.currency,
+      status: t.status,
+      created_at: t.created_at,
+      description: t.description,
+
+      // unified user object
+      sender: t.users_transfers_sender_idTousers,
+      receiver: t.users_transfers_receiver_idTousers,
+    }));
+
+    //     {
+    //   "id": "123",
+    //   "amount": "100.00",
+    //   "currency": "USD",
+    //   "status": "COMPLETED",
+    //   "created_at": "2026-05-05T10:00:00Z",
+    //   "description": "Payment",
+    //   "sender": {
+    //     "full_name": "Alice",
+    //     "phone_number": "11111111"
+    //   },
+    //   "receiver": {
+    //     "full_name": "Bob",
+    //     "phone_number": "22222222"
+    //   }
+    // }
+
     res.status(200).send({
       page: page,
       limit: limit,
-      data: transfers,
+      data: result,
     });
   } catch (error: any) {
     res.status(500).send({
