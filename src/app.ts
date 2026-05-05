@@ -48,6 +48,7 @@ import notificationPrefRoutes from "./routes/notificationPref.routes";
 import walletRoutes from "./routes/wallet.routes";
 import stripeRoutes from "./routes/stripe.routes";
 import aiRoutes from "./routes/ai.routes";
+import currencyRateRoutes from "./routes/currencyRate.routes";
 
 //registering the routes
 //for the users
@@ -78,6 +79,9 @@ fastify.register(stripeRoutes, { prefix: "/api/stripe" });
 
 //for the AI service
 fastify.register(aiRoutes, { prefix: "/api" });
+
+//for the currency rates
+fastify.register(currencyRateRoutes, { prefix: "/api/currency-rates" });
 
 // start server
 const start = async () => {
