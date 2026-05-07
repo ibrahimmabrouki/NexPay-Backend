@@ -3,6 +3,7 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadNotificationsCount,
+  getTotalNotificationsCount,
 } from "../controllers/notification.controller";
 import {
   getAuthenticatedNotificationsQueryParams,
@@ -61,6 +62,18 @@ async function notificationRoutes(fastify: FastifyInstance, options: any) {
       ],
     },
     getUnreadNotificationsCount,
+  );
+
+  //   route to get the total count of notifications for the user
+  fastify.get(
+    "/total-count",
+    {
+      preHandler: [
+        authenticateUser,
+        authorizeRoles(user_role.USER, user_role.COMPANY),
+      ],
+    },
+    getTotalNotificationsCount,
   );
 }
 

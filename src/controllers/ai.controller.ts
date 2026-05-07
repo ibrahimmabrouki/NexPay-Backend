@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../config/prisma";
 import jwtUserPayload from "../types/jwt.types";
 import { summarizeUserMemory } from "../services/summarizer";
+import { getAIChatHistoryQueryParams } from "../types/aiChatHistory";
 
 const getAIResponse = async (req: FastifyRequest, res: FastifyReply) => {
   try {
@@ -28,6 +29,9 @@ const getAIResponse = async (req: FastifyRequest, res: FastifyReply) => {
     const summary = summaryData?.memory_summary || "";
 
     const { question } = req.body as { question: string };
+
+    console.log("history", history);
+    console.log("Memory Summary:", summary);
 
     const response = await fetch(process.env.AI_SERVICE_URL + "/api/chat-AI", {
       method: "POST",
@@ -87,4 +91,36 @@ const getAIResponse = async (req: FastifyRequest, res: FastifyReply) => {
   }
 };
 
-export { getAIResponse };
+// this is the controller to get the history of ai chats from the database related to one person.
+async function getChatHistory(
+  req: FastifyRequest<{ Querystring: getAIChatHistoryQueryParams }>,
+  res: FastifyReply,
+) {
+  try {
+    const user_id = (req.user as jwtUserPayload).id;
+
+    if (!user_id) {
+      return res.status(401).send({ error: "Unauthorized" });
+    }
+
+    const page = req.query.page || 1;
+    const limit = req.query.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const history = await prisma.chat_messages.findMany({
+      where: { user_id },
+      orderBy: { created_at: "asc" },
+      skip: offset,
+      take: limit,
+    });
+    
+    res.send({ history });
+  } catch (error: any) {
+    res.status(500).send({
+      message:
+        error.message || "Some error occurred while retrieving chat history.",
+    });
+  }
+}
+
+export { getAIResponse, getChatHistory };

@@ -151,9 +151,35 @@ async function getUnreadNotificationsCount(
   }
 }
 
+// get the total number of notifications recieved by the user
+
+async function getTotalNotificationsCount(
+  req: FastifyRequest,
+  res: FastifyReply,
+) {
+  try {
+    const user_id = (req.user as jwtUserPayload).id;
+    // we will count the total number of notifications for the user by counting the number of notifications which have the user_id field set to the user id
+    const count = await prisma.notifications.count({
+      where: {
+        user_id: user_id,
+      },
+    });
+    res.status(200).send({ count });
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).send({
+      message:
+        error.message ||
+        "An error occurred during getting the count of total notifications.",
+    });
+  }
+}
+
 export {
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadNotificationsCount,
+  getTotalNotificationsCount,
 };

@@ -78,7 +78,7 @@ fastify.register(walletRoutes, { prefix: "/api/wallet" });
 fastify.register(stripeRoutes, { prefix: "/api/stripe" });
 
 //for the AI service
-fastify.register(aiRoutes, { prefix: "/api" });
+fastify.register(aiRoutes, { prefix: "/api/ai" });
 
 //for the currency rates
 fastify.register(currencyRateRoutes, { prefix: "/api/currency-rates" });

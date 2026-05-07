@@ -10,6 +10,8 @@ async function summarizeUserMemory(user_id: string) {
 
   const count = user?.message_since_last_summary || 0;
 
+  console.log("message_since_last_summary", count);
+
   if (count < parseInt(process.env.CONVERSATION_SUMMARY_TRIGGER || "10")) {
     return;
   }
@@ -30,6 +32,11 @@ async function summarizeUserMemory(user_id: string) {
       body: JSON.stringify({ messages }),
     },
   );
+
+  if (!response.ok) {
+    console.error("Failed to summarize memory:", await response.text());
+    return;
+  }
 
   const data = await response.json();
 
