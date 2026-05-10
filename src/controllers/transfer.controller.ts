@@ -237,6 +237,8 @@ const getTransfers = async (
       orderBy: {
         created_at: "desc",
       },
+      skip: offset,
+      take: limit,
     });
 
     const result = transfers.map((t) => ({

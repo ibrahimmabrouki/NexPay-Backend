@@ -50,6 +50,12 @@ import stripeRoutes from "./routes/stripe.routes";
 import aiRoutes from "./routes/ai.routes";
 import currencyRateRoutes from "./routes/currencyRate.routes";
 
+// these are the admin routes
+import adminTransferRoutes from "./routes/admin/transfers.routes";
+import adminTopUpsRoutes from "./routes/admin/stripe.routes";
+import adminAnnouncementRoutes from "./routes/admin/announcment.routes";
+import adminCredentialRoutes from "./routes/admin/credential.routes";
+
 //registering the routes
 //for the users
 fastify.register(userRoutes, { prefix: "/api/users" });
@@ -82,6 +88,16 @@ fastify.register(aiRoutes, { prefix: "/api/ai" });
 
 //for the currency rates
 fastify.register(currencyRateRoutes, { prefix: "/api/currency-rates" });
+
+// registering the admin routes
+fastify.register(adminTransferRoutes, { prefix: "/api/admin/transfers" });
+fastify.register(adminTopUpsRoutes, { prefix: "/api/admin/top-ups" });
+fastify.register(adminAnnouncementRoutes, {
+  prefix: "/api/admin/announcements",
+});
+fastify.register(adminCredentialRoutes, {
+  prefix: "/api/admin/credentials",
+});
 
 // start server
 const start = async () => {
