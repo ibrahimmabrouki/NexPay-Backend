@@ -4,6 +4,7 @@ import { authenticateUser, authorizeRoles } from "../../middlewares/auth";
 import {
   getAllUsers,
   updateUser,
+  getUserById,
 } from "../../controllers/admin/user.managment.controller";
 
 async function adminUserManagementRoutes(
@@ -23,6 +24,14 @@ async function adminUserManagementRoutes(
       preHandler: [authenticateUser, authorizeRoles(user_role.STAFF)],
     },
     updateUser,
+  );
+
+  fastify.get(
+    "/:id",
+    {
+      preHandler: [authenticateUser, authorizeRoles(user_role.STAFF)],
+    },
+    getUserById,
   );
 }
 

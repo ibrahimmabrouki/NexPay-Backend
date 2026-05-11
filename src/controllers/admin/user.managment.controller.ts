@@ -14,6 +14,7 @@ const getAllUsers = async (req: FastifyRequest, res: FastifyReply) => {
       select: {
         id: true,
         full_name: true,
+        country_code: true,
         phone_number: true,
         role: true,
         created_at: true,
@@ -47,14 +48,15 @@ async function updateUser(req: FastifyRequest, res: FastifyReply) {
       return res.status(404).send({ error: "User not found" });
     }
 
-    const { full_name, phone_number, address, is_active, country_code } = req.body as {
-      full_name?: string;
-      phone_number?: string;
-      role?: user_role;
-      address?: string;
-      is_active?: boolean;
-      country_code?: string;
-    };
+    const { full_name, phone_number, address, is_active, country_code } =
+      req.body as {
+        full_name?: string;
+        phone_number?: string;
+        role?: user_role;
+        address?: string;
+        is_active?: boolean;
+        country_code?: string;
+      };
 
     const updatedData: {
       full_name?: string;
@@ -100,4 +102,61 @@ async function updateUser(req: FastifyRequest, res: FastifyReply) {
   }
 }
 
-export { getAllUsers, updateUser };
+// controller for the admin to get user by id
+const getUserById = async (req: FastifyRequest, res: FastifyReply) => {
+  try {
+    const payload = req.user as jwtUserPayload;
+    const user = await prisma.users.findUnique({
+      where: { id: payload.id },
+    });
+
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    if (user.role !== user_role.STAFF) {
+      return res.status(403).send({ message: "Forbidden" });
+    }
+    const { id } = req.params as { id: string };
+    const targetUser = await prisma.users.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        full_name: true,
+        country_code: true,
+        phone_number: true,
+        role: true,
+        created_at: true,
+        address: true,
+        is_active: true,
+        updated_at: true,
+
+        wallets: {
+          select: {
+            id: true,
+            created_at: true,
+
+            wallet_balances: {
+              select: {
+                currency: true,
+                available_balance: true,
+                pending_balance: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!targetUser) {
+      return res.status(404).send({ message: "User not found" });
+    }
+    res.send({ user: targetUser });
+  } catch (error: any) {
+    res.status(500).send({
+      message: "An error occurred while fetching the user",
+      error: error.message,
+    });
+  }
+};
+
+export { getAllUsers, updateUser, getUserById };
