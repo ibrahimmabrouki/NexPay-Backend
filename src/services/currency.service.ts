@@ -34,15 +34,15 @@ export const getRateWithCache = async (
       update: {
         rate: new Prisma.Decimal(rate),
         fetched_at: new Date(),
-        expires_at: new Date(Date.now() + 3600000), // Set expiration to 1 hour from now
+        expires_at: new Date(Date.now() + 60000), 
       },
       create: {
         base_currency: from,
         target_currency: to,
         rate: new Prisma.Decimal(rate),
-        source: "frankfurter",
+        source: "open.er-api",
         fetched_at: new Date(),
-        expires_at: new Date(Date.now() + 3600000),
+        expires_at: new Date(Date.now() + 60000),
       },
     });
     return Number(rate);

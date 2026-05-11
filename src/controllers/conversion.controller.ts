@@ -19,6 +19,13 @@ async function convertCurrency(req: FastifyRequest, res: FastifyReply) {
       amount: number;
     };
 
+    // the currencies must be different in order to do the conversion
+    if (from_currency === to_currency) {
+      return res
+        .status(400)
+        .send({ message: "Source and target currencies must be different" });
+    }
+
     // get the user id from the access token
     const user_id = (req.user as jwtUserPayload).id;
 
