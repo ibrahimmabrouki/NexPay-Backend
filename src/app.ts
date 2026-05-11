@@ -6,6 +6,7 @@ import rawBody from "fastify-raw-body";
 import Fastify from "fastify";
 import jwt from "@fastify/jwt";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 
 const fastify = Fastify({ logger: true });
 
@@ -30,7 +31,9 @@ fastify.register(rawBody, {
   runFirst: true,
 });
 
-fastify.register(require("@fastify/multipart"));
+fastify.register(multipart);
+
+// fastify.register(require("@fastify/multipart"));
 
 fastify.register(cookie, {
   secret: process.env.COOKIE_SECRET as string,
@@ -55,6 +58,7 @@ import adminTransferRoutes from "./routes/admin/transfers.routes";
 import adminTopUpsRoutes from "./routes/admin/stripe.routes";
 import adminAnnouncementRoutes from "./routes/admin/announcment.routes";
 import adminCredentialRoutes from "./routes/admin/credential.routes";
+import adminUserManagementRoutes from "./routes/admin/user.managment.routes";
 
 //registering the routes
 //for the users
@@ -97,6 +101,9 @@ fastify.register(adminAnnouncementRoutes, {
 });
 fastify.register(adminCredentialRoutes, {
   prefix: "/api/admin/credentials",
+});
+fastify.register(adminUserManagementRoutes, {
+  prefix: "/api/admin/users",
 });
 
 // start server

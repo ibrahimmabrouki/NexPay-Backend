@@ -28,6 +28,7 @@ async function summarizeUserMemory(user_id: string) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "X-INTERNAL-API-KEY": process.env.INTERNAL_API_KEY!,
       },
       body: JSON.stringify({ messages }),
     },

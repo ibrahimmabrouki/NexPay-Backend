@@ -29,3 +29,4 @@ export type RegisterUserDTO = {
   password: string;
   confirmPassword: string;
 };
+

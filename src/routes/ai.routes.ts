@@ -1,4 +1,8 @@
-import { getAIResponse, getChatHistory } from "../controllers/ai.controller";
+import {
+  getAIResponseText,
+  getAIResponseVoice,
+  getChatHistory,
+} from "../controllers/ai.controller";
 import { FastifyInstance } from "fastify";
 import { user_role } from "../generated/prisma/enums";
 import { authenticateUser, authorizeRoles } from "../middlewares/auth";
@@ -13,7 +17,18 @@ async function aiRoutes(fastify: FastifyInstance, options: any) {
         authorizeRoles(user_role.COMPANY, user_role.STAFF, user_role.USER),
       ],
     },
-    getAIResponse,
+    getAIResponseText,
+  );
+
+  fastify.post(
+    "/chat/voice",
+    {
+      preHandler: [
+        authenticateUser,
+        authorizeRoles(user_role.COMPANY, user_role.STAFF, user_role.USER),
+      ],
+    },
+    getAIResponseVoice,
   );
 
   fastify.get<{ Querystring: getAIChatHistoryQueryParams }>(

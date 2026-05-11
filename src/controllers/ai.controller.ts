@@ -1,10 +1,13 @@
 import { FastifyRequest, FastifyReply } from "fastify";
+import fs from "fs";
+import FormData from "form-data";
+import axios from "axios";
 import { prisma } from "../config/prisma";
 import jwtUserPayload from "../types/jwt.types";
 import { summarizeUserMemory } from "../services/summarizer";
 import { getAIChatHistoryQueryParams } from "../types/aiChatHistory";
 
-const getAIResponse = async (req: FastifyRequest, res: FastifyReply) => {
+const getAIResponseText = async (req: FastifyRequest, res: FastifyReply) => {
   try {
     const user_id = (req.user as jwtUserPayload).id;
 
@@ -75,7 +78,7 @@ const getAIResponse = async (req: FastifyRequest, res: FastifyReply) => {
     await prisma.users.update({
       where: { id: user_id },
       data: {
-        message_since_last_summary: { increment: 1 },
+        message_since_last_summary: { increment: 2 },
       },
     });
 
@@ -90,6 +93,98 @@ const getAIResponse = async (req: FastifyRequest, res: FastifyReply) => {
     });
   }
 };
+
+// this controller is to allow the user to send voices to the ai instead of text and recieving the answe as text
+async function getAIResponseVoice(req: FastifyRequest, res: FastifyReply) {
+  try {
+    const user_id = (req.user as jwtUserPayload).id;
+
+    if (!user_id) {
+      return res.status(401).send({ error: "Unauthorized" });
+    }
+
+    // 1. get uploaded file
+    const data = await req.file();
+
+    if (!data) {
+      return res.status(400).send({ error: "No audio file provided" });
+    }
+
+    const dir = "./tmp";
+
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    // 2. save file temporarily
+    const filePath = `./tmp/${Date.now()}-${data.filename}`;
+    await fs.promises.writeFile(filePath, await data.toBuffer());
+
+    // 3. get DB history (same logic as text chat)
+    const history = await prisma.chat_messages.findMany({
+      where: { user_id },
+      orderBy: { created_at: "desc" },
+      take: 5,
+    });
+
+    const summaryData = await prisma.users.findUnique({
+      where: { id: user_id },
+      select: { memory_summary: true },
+    });
+
+    const summary = summaryData?.memory_summary || "";
+
+    // 4. send everything to FastAPI voice endpoint
+    const form = new FormData();
+
+    form.append("audio", fs.createReadStream(filePath));
+    form.append("user_id", user_id);
+    form.append("summary", summary);
+    form.append("history", JSON.stringify(history.reverse()));
+
+    const response = await axios.post(
+      `${process.env.AI_SERVICE_URL}/api/voice-chat`,
+      form,
+      {
+        headers: {
+          ...form.getHeaders(),
+          "X-INTERNAL-API-KEY": process.env.INTERNAL_API_KEY!,
+        },
+      },
+    );
+
+    // 5. cleanup file
+    await fs.promises.unlink(filePath);
+
+    // 6. save chat messages (same as text flow)
+    const transcription = response.data.question;
+    const answer = response.data.answer;
+
+    await prisma.chat_messages.create({
+      data: {
+        user_id,
+        role: "user",
+        content: transcription,
+      },
+    });
+
+    await prisma.chat_messages.create({
+      data: {
+        user_id,
+        role: "assistant",
+        content: answer,
+      },
+    });
+
+    return res.send({
+      transcription,
+      answer,
+    });
+  } catch (err: any) {
+    return res.status(500).send({
+      error: err.message || "Voice chat failed",
+    });
+  }
+}
 
 // this is the controller to get the history of ai chats from the database related to one person.
 async function getChatHistory(
@@ -113,7 +208,7 @@ async function getChatHistory(
       skip: offset,
       take: limit,
     });
-    
+
     res.send({ history });
   } catch (error: any) {
     res.status(500).send({
@@ -123,4 +218,4 @@ async function getChatHistory(
   }
 }
 
-export { getAIResponse, getChatHistory };
+export { getAIResponseText, getAIResponseVoice, getChatHistory };
