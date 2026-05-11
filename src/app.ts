@@ -60,6 +60,7 @@ import adminAnnouncementRoutes from "./routes/admin/announcment.routes";
 import adminCredentialRoutes from "./routes/admin/credential.routes";
 import adminUserManagementRoutes from "./routes/admin/user.managment.routes";
 import adminExchangeRateRoutes from "./routes/admin/exchangeRate.routes";
+import adminDashboardStatusRoutes from "./routes/admin/dashboardStatus.routes";
 
 //registering the routes
 //for the users
@@ -108,6 +109,9 @@ fastify.register(adminUserManagementRoutes, {
 });
 fastify.register(adminExchangeRateRoutes, {
   prefix: "/api/admin/exchange-rates",
+});
+fastify.register(adminDashboardStatusRoutes, {
+  prefix: "/api/admin/dashboard-status",
 });
 
 // start server
