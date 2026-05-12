@@ -227,6 +227,7 @@ enum transaction_status {
   PENDING
   COMPLETED
   FAILED
+  CANCELED
 }
 
 enum user_role {

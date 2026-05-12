@@ -76,6 +76,8 @@ async function createStripeSession(req: FastifyRequest, res: FastifyReply) {
       },
     });
 
+    const stripeTopupId = stripeTopup.id;
+
     //now we need to create the Line items for the stripe session
     const LineItems = [
       {
@@ -99,19 +101,19 @@ async function createStripeSession(req: FastifyRequest, res: FastifyReply) {
         line_items: LineItems,
 
         //specifying the success and the canel urls, these urls will be returend to the user in the frontend to redirect the user to the success page if the payment is successful or to the cancel page if the user canceled the payment or if there was an error during the payment process
-        success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/cancel`,
+        success_url: `${process.env.FRONTEND_URL}/transactions?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL}/deposit?&cancel=true&topup_id={stripeTopupId}`,
 
         metadata: {
           userId: user_id,
           walletId: wallet.id,
-          topupId: stripeTopup.id,
+          topupId: stripeTopupId,
           amount: amount.toString(),
           currency: currencyType,
         },
       },
       {
-        idempotencyKey: stripeTopup.id, // Use the stripe_topups id as the idempotency key to prevent creating multiple sessions for the same topup in case of multiple requests being sent from the frontend
+        idempotencyKey: stripeTopupId, // Use the stripe_topups id as the idempotency key to prevent creating multiple sessions for the same topup in case of multiple requests being sent from the frontend
       },
     );
 
@@ -365,4 +367,46 @@ async function getOwnTopups(
   }
 }
 
-export { createStripeSession, handleStripeWebhook, getOwnTopups };
+const cancelStripTopup = async (req: FastifyRequest, res: FastifyReply) => {
+  try {
+    const payload = req.user as jwtUserPayload;
+
+    const user = await prisma.users.findUnique({
+      where: {
+        id: payload.id,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    const { topup_id } = req.body as { topup_id: string };
+
+    const topup = await prisma.stripe_topups.update({
+      where: {
+        id: topup_id,
+        user_id: payload.id,
+      },
+      data: {
+        status: transaction_status.CANCELED,
+      },
+    });
+
+    return res
+      .status(200)
+      .send({ message: "Topup cancelled successfully", topup });
+  } catch (error: any) {
+    console.error(error);
+    return res.status(500).send({
+      message: error.message || "An error occurred while cancelling the topup",
+    });
+  }
+};
+
+export {
+  createStripeSession,
+  handleStripeWebhook,
+  getOwnTopups,
+  cancelStripTopup,
+};

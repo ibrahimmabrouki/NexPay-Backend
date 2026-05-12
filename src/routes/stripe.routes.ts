@@ -2,6 +2,7 @@ import {
   createStripeSession,
   handleStripeWebhook,
   getOwnTopups,
+  cancelStripTopup,
 } from "../controllers/stripe.controller";
 import { getTopUpsQueryParams } from "../types/topups";
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -30,6 +31,17 @@ async function stripeRoutes(fastify: FastifyInstance, options: any) {
       ],
     },
     getOwnTopups,
+  );
+
+  fastify.post(
+    "/cancel",
+    {
+      preHandler: [
+        authenticateUser,
+        authorizeRoles(user_role.USER, user_role.COMPANY),
+      ],
+    },
+    cancelStripTopup,
   );
 }
 
