@@ -8,6 +8,7 @@ import {
   ledger_type,
   reference_type,
 } from "../generated/prisma/enums";
+import { upsertTransaction } from "../services/upsertTransaction";
 import { getRateWithCache } from "../services/currency.service";
 import { Prisma } from "../generated/prisma/client";
 
@@ -28,6 +29,18 @@ async function convertCurrency(req: FastifyRequest, res: FastifyReply) {
 
     // get the user id from the access token
     const user_id = (req.user as jwtUserPayload).id;
+
+    const user = await prisma.users.findUnique({
+      where: { id: user_id },
+      select: {
+        full_name: true,
+        phone_number: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
 
     // check if the user has a wallet
     const wallet = await prisma.wallets.findFirst({
@@ -64,104 +77,127 @@ async function convertCurrency(req: FastifyRequest, res: FastifyReply) {
     // calculate the converted amount
     const converted_amount = new Prisma.Decimal(amount).mul(exchange_rate);
 
-    const result = await prisma.$transaction(async (tx) => {
-      //the first step is to create the conversion in the conversions table
-      const conversion = await tx.currency_conversions.create({
-        data: {
+    const result = await prisma.$transaction(
+      async (tx) => {
+        //the first step is to create the conversion in the conversions table
+        const conversion = await tx.currency_conversions.create({
+          data: {
+            user_id: user_id,
+            wallet_id: wallet.id,
+            from_currency,
+            to_currency,
+            amount_from: new Prisma.Decimal(amount),
+            amount_to: new Prisma.Decimal(converted_amount),
+            rate_used: new Prisma.Decimal(exchange_rate),
+            status: transaction_status.PENDING,
+          },
+        });
+
+        const ledger_transaction_debit = await tx.ledger_transactions.create({
+          data: {
+            user_id: user_id,
+            wallet_id: wallet.id,
+            type: ledger_type.CONVERSION_DEBIT,
+            currency: from_currency,
+            amount: new Prisma.Decimal(amount),
+            balance_before: wallet_balance.available_balance,
+            balance_after: wallet_balance.available_balance.minus(
+              new Prisma.Decimal(amount),
+            ),
+            reference_type: reference_type.CONVERSION,
+            reference_id: conversion.id,
+            status: transaction_status.PENDING,
+          },
+        });
+
+        const target_balance = await tx.wallet_balances.findFirst({
+          where: {
+            wallet_id: wallet.id,
+            currency: to_currency,
+          },
+        });
+
+        if (!target_balance) {
+          throw new Error(
+            "Target wallet balance not found for the specified currency",
+          );
+        }
+
+        const ledger_transaction_credit = await tx.ledger_transactions.create({
+          data: {
+            user_id: user_id,
+            wallet_id: wallet.id,
+            type: ledger_type.CONVERSION_CREDIT,
+            currency: to_currency,
+            amount: converted_amount,
+            balance_before: target_balance!.available_balance,
+            balance_after:
+              target_balance!.available_balance.plus(converted_amount),
+            reference_type: reference_type.CONVERSION,
+            reference_id: conversion.id,
+            status: transaction_status.PENDING,
+          },
+        });
+
+        // update the wallet balances accordingly
+        await tx.wallet_balances.update({
+          where: { id: wallet_balance.id },
+          data: {
+            available_balance: wallet_balance.available_balance.minus(amount),
+          },
+        });
+
+        // update the target wallet balance by adding the converted amount
+        await tx.wallet_balances.update({
+          where: { id: target_balance.id },
+          data: {
+            available_balance:
+              target_balance.available_balance.plus(converted_amount),
+          },
+        });
+
+        // after all the operations are done we will update the conversion status to completed
+        const final_conversion = await tx.currency_conversions.update({
+          where: { id: conversion.id },
+          data: { status: transaction_status.COMPLETED },
+        });
+
+        // update the ledger transactions status to completed
+        const updated_ledger_transactions_debit =
+          await tx.ledger_transactions.updateMany({
+            where: { id: ledger_transaction_debit.id },
+            data: { status: transaction_status.COMPLETED },
+          });
+
+        // update the ledger transactions status to completed
+        const updated_ledger_transactions_credit =
+          await tx.ledger_transactions.updateMany({
+            where: { id: ledger_transaction_credit.id },
+            data: { status: transaction_status.COMPLETED },
+          });
+
+        await upsertTransaction({
+          id: ledger_transaction_debit.id,
           user_id: user_id,
-          wallet_id: wallet.id,
+          user_name: user.full_name,
+          phone_number: user.phone_number,
+          type: "CONVERSION", // IMPORTANT
+          reference_type: "CONVERSION",
+          amount: amount,
+          currency: from_currency,
+          created_at: new Date().toISOString(),
           from_currency,
           to_currency,
-          amount_from: new Prisma.Decimal(amount),
-          amount_to: new Prisma.Decimal(converted_amount),
-          rate_used: new Prisma.Decimal(exchange_rate),
-          status: transaction_status.PENDING,
-        },
-      });
+          amount_from: amount,
+          amount_to: converted_amount,
+        });
 
-      const ledger_transaction_debit = await tx.ledger_transactions.create({
-        data: {
-          user_id: user_id,
-          wallet_id: wallet.id,
-          type: ledger_type.CONVERSION_DEBIT,
-          currency: from_currency,
-          amount: new Prisma.Decimal(amount),
-          balance_before: wallet_balance.available_balance,
-          balance_after: wallet_balance.available_balance.minus(
-            new Prisma.Decimal(amount),
-          ),
-          reference_type: reference_type.CONVERSION,
-          reference_id: conversion.id,
-          status: transaction_status.PENDING,
-        },
-      });
-
-      const target_balance = await tx.wallet_balances.findFirst({
-        where: {
-          wallet_id: wallet.id,
-          currency: to_currency,
-        },
-      });
-
-      if (!target_balance) {
-        throw new Error(
-          "Target wallet balance not found for the specified currency",
-        );
-      }
-
-      const ledger_transaction_credit = await tx.ledger_transactions.create({
-        data: {
-          user_id: user_id,
-          wallet_id: wallet.id,
-          type: ledger_type.CONVERSION_CREDIT,
-          currency: to_currency,
-          amount: converted_amount,
-          balance_before: target_balance!.available_balance,
-          balance_after:
-            target_balance!.available_balance.plus(converted_amount),
-          reference_type: reference_type.CONVERSION,
-          reference_id: conversion.id,
-          status: transaction_status.PENDING,
-        },
-      });
-
-      // update the wallet balances accordingly
-      await tx.wallet_balances.update({
-        where: { id: wallet_balance.id },
-        data: {
-          available_balance: wallet_balance.available_balance.minus(amount),
-        },
-      });
-
-      // update the target wallet balance by adding the converted amount
-      await tx.wallet_balances.update({
-        where: { id: target_balance.id },
-        data: {
-          available_balance:
-            target_balance.available_balance.plus(converted_amount),
-        },
-      });
-
-      // after all the operations are done we will update the conversion status to completed
-      const final_conversion = await tx.currency_conversions.update({
-        where: { id: conversion.id },
-        data: { status: transaction_status.COMPLETED },
-      });
-
-      // update the ledger transactions status to completed
-      await tx.ledger_transactions.updateMany({
-        where: { id: ledger_transaction_debit.id },
-        data: { status: transaction_status.COMPLETED },
-      });
-
-      // update the ledger transactions status to completed
-      await tx.ledger_transactions.updateMany({
-        where: { id: ledger_transaction_credit.id },
-        data: { status: transaction_status.COMPLETED },
-      });
-
-      return { final_conversion };
-    });
+        return { final_conversion };
+      },
+      {
+        timeout: 60000, // 60 seconds
+      },
+    );
 
     res.status(200).send({
       message: "Currency conversion successful",

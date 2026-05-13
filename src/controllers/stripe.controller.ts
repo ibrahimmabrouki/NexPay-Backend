@@ -10,6 +10,8 @@ import {
   notification_type,
 } from "../generated/prisma/enums";
 import Stripe from "stripe";
+import { upsertTransaction } from "../services/upsertTransaction";
+import { Prisma } from "../generated/prisma/client";
 
 // controller to call the stripe api to create a create the session, create the stripe_topups row in the database with pending state to be later updated to completed in the webhook
 // handler after deducting the amount from the user card to be added into their wallet balance
@@ -217,8 +219,22 @@ async function handleStripeWebhook(req: FastifyRequest, res: FastifyReply) {
       }
 
       const passedCurrency = currency.toUpperCase();
+      const amountNum = new Prisma.Decimal(amount);
 
-      await prisma.$transaction(async (tx) => {
+
+      const user = await prisma.users.findUnique({
+        where: { id: userId },
+        select: {
+          full_name: true,
+          phone_number: true,
+        },
+      });
+
+      if (!user) {
+        return res.status(404).send({ message: "User not found" });
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
         // 1. update topup
         const topup = await tx.stripe_topups.update({
           where: { id: topupId },
@@ -240,13 +256,20 @@ async function handleStripeWebhook(req: FastifyRequest, res: FastifyReply) {
           throw new Error("Wallet balance not found");
         }
 
-        const newBalance = balance.available_balance.plus(amount);
+        const newBalance = balance.available_balance.plus(amountNum);
 
         // 3. update balance
         await tx.wallet_balances.update({
           where: { id: balance.id },
           data: {
             available_balance: newBalance,
+          },
+        });
+
+        const ledger = await tx.ledger_transactions.findFirst({
+          where: {
+            reference_id: topupId,
+            reference_type: reference_type.STRIPE,
           },
         });
 
@@ -279,6 +302,21 @@ async function handleStripeWebhook(req: FastifyRequest, res: FastifyReply) {
             reference_id: topupId,
           },
         });
+
+        return ledger ;
+      });
+
+      await upsertTransaction({
+        id: result?.id || "",
+        user_id: userId,
+        user_name: user.full_name,
+        phone_number: user.phone_number,
+        type: "TOPUP",
+        reference_type: "STRIPE",
+        reference_id: topupId,
+        amount: amountNum,
+        currency: passedCurrency,
+        created_at: new Date().toISOString(),
       });
 
       console.log(" Topup completed:", topupId);
