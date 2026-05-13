@@ -9,6 +9,7 @@ import {
 } from "../generated/prisma/enums";
 import jwtUserPayload from "../types/jwt.types";
 import { getTransfersQueryParams } from "../types/tranfer";
+import { upsertTransaction } from "../services/upsertTransaction";
 
 // controller to make a transfer from one user to another, the transfer will be created with pending status then after the transfer is created and money is deducted from the sender wallet balance and added to the recipient wallet balance we will update the transfer status to completed
 const createTransfer = async (req: FastifyRequest, res: FastifyReply) => {
@@ -167,7 +168,64 @@ const createTransfer = async (req: FastifyRequest, res: FastifyReply) => {
         where: { id: recipient_ledger_transaction.id },
         data: { status: transaction_status.COMPLETED },
       });
-      return { final_transfer };
+      return {
+        final_transfer,
+        sender_ledger_transaction,
+        recipient_ledger_transaction,
+      };
+    });
+
+    // adding the transaction to the vector database for the sender
+    // sender + receiver enrichment for vector DB / AI ledger
+    const transfer = result.final_transfer;
+    const ledgerSenderID = result.sender_ledger_transaction?.id || "";
+    const ledgerRecipientID = result.recipient_ledger_transaction?.id || "";
+
+    // receiver upsert
+    const recipientUser = await prisma.users.findUnique({
+      where: {
+        phone_number: rceipient_phone_number,
+      },
+      select: {
+        id: true,
+        full_name: true,
+        phone_number: true,
+      },
+    });
+
+    if (!recipientUser) {
+      return res.status(404).send({ error: "Recipient not found" });
+    }
+
+    // sender upsert
+    await upsertTransaction({
+      id: ledgerSenderID,
+      user_id: transfer.sender_id,
+      user_name: sender.full_name,
+      phone_number: sender.phone_number,
+      type: "TRANSFER_OUT",
+      reference_type: "TRANSFER",
+      reference_id: transfer.id,
+      amount: transfer.amount,
+      currency: transfer.currency,
+      receiver_name: recipientUser?.full_name || "Unknown",
+      receiver_phone: recipientUser?.phone_number || "",
+      created_at: new Date().toISOString(),
+    });
+
+    await upsertTransaction({
+      id: ledgerRecipientID,
+      user_id: transfer.receiver_id,
+      user_name: recipientUser?.full_name || "Unknown",
+      phone_number: recipientUser?.phone_number || "",
+      type: "TRANSFER_IN",
+      reference_type: "TRANSFER",
+      reference_id: transfer.id,
+      amount: transfer.amount,
+      currency: transfer.currency,
+      sender_name: sender.full_name,
+      sender_phone: sender.phone_number,
+      created_at: new Date().toISOString(),
     });
 
     // after everything is done we will send a notification to the recipient to notify them about the transfer

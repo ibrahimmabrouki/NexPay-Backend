@@ -104,7 +104,7 @@ async function createStripeSession(req: FastifyRequest, res: FastifyReply) {
 
         //specifying the success and the canel urls, these urls will be returend to the user in the frontend to redirect the user to the success page if the payment is successful or to the cancel page if the user canceled the payment or if there was an error during the payment process
         success_url: `${process.env.FRONTEND_URL}/transactions?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/deposit?&cancel=true&topup_id={stripeTopupId}`,
+        cancel_url: `${process.env.FRONTEND_URL}/deposit?&cancel=true&topup_id=${stripeTopupId}`,
 
         metadata: {
           userId: user_id,
